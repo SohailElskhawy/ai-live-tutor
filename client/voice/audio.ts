@@ -20,14 +20,16 @@ class PcmCapture extends AudioWorkletProcessor {
 		this.acc = 0
 		this.sum = 0
 		this.count = 0
+		this.energy = 0
+		this.energyCount = 0
 	}
 	process(inputs) {
 		const channel = inputs[0] && inputs[0][0]
 		if (!channel) return true
-		let energy = 0
 		for (let i = 0; i < channel.length; i++) {
 			const x = channel[i]
-			energy += x * x
+			this.energy += x * x
+			this.energyCount++
 			this.sum += x
 			this.count++
 			this.acc += 1
@@ -38,9 +40,12 @@ class PcmCapture extends AudioWorkletProcessor {
 			this.count = 0
 			this.buffer[this.offset++] = s < 0 ? s * 0x8000 : s * 0x7fff
 			if (this.offset === this.buffer.length) {
-				this.port.postMessage({ pcm: this.buffer.buffer, level: Math.sqrt(energy / (i + 1)) }, [this.buffer.buffer])
+				const level = Math.sqrt(this.energy / this.energyCount)
+				this.port.postMessage({ pcm: this.buffer.buffer, level }, [this.buffer.buffer])
 				this.buffer = new Int16Array(1600)
 				this.offset = 0
+				this.energy = 0
+				this.energyCount = 0
 			}
 		}
 		return true
@@ -74,7 +79,7 @@ export class MicCapture {
 	muted = false
 
 	constructor(
-		private onChunk: (base64Pcm: string) => void,
+		private onChunk: (base64Pcm: string, level: number) => void,
 		private onLevel: (level: number) => void = () => {}
 	) {}
 
@@ -114,7 +119,7 @@ export class MicCapture {
 				return
 			}
 			this.onLevel(e.data.level)
-			this.onChunk(arrayBufferToBase64(e.data.pcm))
+			this.onChunk(arrayBufferToBase64(e.data.pcm), e.data.level)
 		}
 		source.connect(this.node)
 	}
@@ -180,11 +185,20 @@ export class PcmPlayer {
 			}
 		}
 		this.sources.clear()
-		this.nextStartTime = 0
+		this.nextStartTime = this.context?.currentTime ?? 0
 	}
 
 	isPlaying() {
 		return this.sources.size > 0
+	}
+
+	/**
+	 * True while the tutor's voice may still be reaching the microphone: during playback
+	 * and for a short tail afterwards, while room echo dies down.
+	 */
+	isEchoLikely(tailSeconds = 0.35) {
+		if (!this.context) return false
+		return this.sources.size > 0 || this.context.currentTime < this.nextStartTime + tailSeconds
 	}
 
 	/** Current output loudness from 0 to 1, for the speaking indicator. */

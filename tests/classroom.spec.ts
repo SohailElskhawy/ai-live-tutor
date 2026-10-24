@@ -202,6 +202,9 @@ test.describe('voice tutor', () => {
 		const tools = setup.tools[0].functionDeclarations.map((f: any) => f.name)
 		expect(tools).toEqual(['draw_on_whiteboard', 'edit_whiteboard', 'look_at_whiteboard', 'stop_drawing'])
 		expect(JSON.stringify(setup.systemInstruction)).toContain('Calvin cycle')
+		// Calmer voice detection so noise and echo don't cut the tutor off
+		expect(setup.realtimeInputConfig.automaticActivityDetection.startOfSpeechSensitivity).toBe('START_SENSITIVITY_LOW')
+		expect(setup.realtimeInputConfig.activityHandling).toBe('START_OF_ACTIVITY_INTERRUPTS')
 
 		// Microphone audio is streaming to Gemini
 		await expect.poll(() => audioChunks).toBeGreaterThan(3)

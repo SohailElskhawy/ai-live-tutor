@@ -1,10 +1,13 @@
 import {
+	ActivityHandling,
+	EndSensitivity,
 	FunctionCall,
 	FunctionResponse,
 	GoogleGenAI,
 	LiveServerMessage,
 	Modality,
 	Session,
+	StartSensitivity,
 	Type,
 } from '@google/genai'
 import { atom } from 'tldraw'
@@ -13,6 +16,17 @@ import { $studyContext, getStudyExcerpt } from '../study/studyStore'
 import { BoardBridge, BoardTask } from '../tutor/boardBridge'
 import { getKeyHeaders } from '../tutor/keyStore'
 import { MicCapture, PcmPlayer } from './audio'
+import { EchoGate } from './echoGate'
+
+const INTERRUPTIONS_PREF = 'ai-live-tutor:allow-interruptions'
+
+function loadInterruptionsPref(): boolean {
+	try {
+		return localStorage.getItem(INTERRUPTIONS_PREF) !== 'false'
+	} catch {
+		return true
+	}
+}
 
 /** Voice lifecycle logs. Shown in development so connection problems are easy to trace. */
 function voiceLog(...args: unknown[]) {
@@ -104,6 +118,8 @@ export class LiveTutor {
 	readonly $micLevel = atom('micLevel', 0)
 	readonly $error = atom<string | null>('liveError', null)
 	readonly $muted = atom('liveMuted', false)
+	/** Whether the student can talk over the tutor. Off = the tutor always finishes its sentence. */
+	readonly $allowInterruptions = atom('allowInterruptions', loadInterruptionsPref())
 
 	private session: Session | null = null
 	private mic: MicCapture | null = null
@@ -112,7 +128,21 @@ export class LiveTutor {
 	private statusTimer: ReturnType<typeof setInterval> | null = null
 	private closedByUser = false
 
+	private echoGate = new EchoGate({
+		allowInterruptions: () => this.$allowInterruptions.get(),
+		tutorSpeaking: () => this.player.isEchoLikely(),
+	})
+
 	constructor(private board: BoardBridge) {}
+
+	setAllowInterruptions(allow: boolean) {
+		this.$allowInterruptions.set(allow)
+		try {
+			localStorage.setItem(INTERRUPTIONS_PREF, String(allow))
+		} catch {
+			// preference just won't persist
+		}
+	}
 
 	isActive() {
 		const status = this.$status.get()
@@ -134,7 +164,12 @@ export class LiveTutor {
 			// Contexts created after the awaits below would start suspended.
 			const playerReady = this.player.resume()
 			this.mic = new MicCapture(
-				(data) => this.session?.sendRealtimeInput({ audio: { data, mimeType: 'audio/pcm;rate=16000' } }),
+				(data, level) => {
+					// Hold back echo of the tutor's own voice so it doesn't interrupt itself
+					for (const chunk of this.echoGate.process(data, level)) {
+						this.session?.sendRealtimeInput({ audio: { data: chunk, mimeType: 'audio/pcm;rate=16000' } })
+					}
+				},
 				(level) => this.$micLevel.set(level)
 			)
 			this.mic.prepare()
@@ -174,6 +209,19 @@ export class LiveTutor {
 					inputAudioTranscription: {},
 					outputAudioTranscription: {},
 					speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+					realtimeInputConfig: {
+						// Less eager voice detection: background noise shouldn't count as the student
+						// talking, and short pauses while thinking shouldn't end their turn.
+						automaticActivityDetection: {
+							startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_LOW,
+							endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+							prefixPaddingMs: 200,
+							silenceDurationMs: 800,
+						},
+						activityHandling: this.$allowInterruptions.get()
+							? ActivityHandling.START_OF_ACTIVITY_INTERRUPTS
+							: ActivityHandling.NO_INTERRUPTION,
+					},
 				},
 				callbacks: {
 					onmessage: (message) => this.handleMessage(message),

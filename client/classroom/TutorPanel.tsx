@@ -23,6 +23,7 @@ export function TutorPanel({ onOpenStudy }: { onOpenStudy: () => void }) {
 	const status = useValue('status', () => tutor.$status.get(), [tutor])
 	const error = useValue('error', () => tutor.$error.get(), [tutor])
 	const muted = useValue('muted', () => tutor.$muted.get(), [tutor])
+	const allowInterruptions = useValue('allowInterruptions', () => tutor.$allowInterruptions.get(), [tutor])
 	const transcript = useValue('transcript', () => tutor.$transcript.get(), [tutor])
 	const isDrawing = useValue('isDrawing', () => board.isBusy(), [board])
 	const study = useValue('study', () => $studyContext.get(), [])
@@ -81,9 +82,11 @@ export function TutorPanel({ onOpenStudy }: { onOpenStudy: () => void }) {
 					{live && muted ? 'Microphone muted' : STATUS_LABEL[status]}
 				</p>
 				<p className="cr-voice-hint">
-					{live
-						? 'Just talk. Interrupt any time, e.g. “make that arrow red”.'
-						: 'Start a session and ask anything out loud. Your tutor will draw as it explains.'}
+					{!live
+						? 'Start a session and ask anything out loud. Your tutor will draw as it explains.'
+						: allowInterruptions
+							? 'Just talk. Speak up to interrupt, e.g. “make that arrow red”.'
+							: 'Just talk. The tutor finishes each answer before listening.'}
 				</p>
 
 				{live ? (
@@ -108,6 +111,22 @@ export function TutorPanel({ onOpenStudy }: { onOpenStudy: () => void }) {
 						{status === 'connecting' ? 'Connecting…' : status === 'error' ? 'Reconnect' : 'Start talking'}
 					</button>
 				)}
+
+				<label className="cr-switch">
+					<input
+						type="checkbox"
+						role="switch"
+						checked={allowInterruptions}
+						onChange={(e) => tutor.setAllowInterruptions(e.target.checked)}
+					/>
+					<span className="cr-switch-track" aria-hidden="true" />
+					<span className="cr-switch-label">
+						Let me interrupt
+						<span className="cr-switch-hint">
+							{allowInterruptions ? 'Speak up to cut in. Echo and noise are ignored.' : 'Tutor always finishes speaking.'}
+						</span>
+					</span>
+				</label>
 
 				{error && (
 					<p className="cr-alert" role="alert">
