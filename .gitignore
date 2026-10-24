@@ -1,0 +1,13 @@
+/*/node_modules
+node_modules
+.yarn/
+.dev.vars
+*.dev.vars
+# Playwright
+test-results/
+playwright-report/
+
+# Build and local runtime state
+dist/
+.wrangler/
+.tsbuild/
