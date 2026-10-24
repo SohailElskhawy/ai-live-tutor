@@ -12,7 +12,7 @@ import {
 	TldrawAgentAppContextProvider,
 	TldrawAgentAppProvider,
 } from './agent/TldrawAgentAppProvider'
-import { ClassroomProvider } from './classroom/ClassroomContext'
+import { ClassroomProvider, WhenClassroomReady } from './classroom/ClassroomContext'
 import { ClassroomPanel, ClassroomTab } from './classroom/ClassroomPanel'
 import { KeyDialog } from './classroom/KeyDialog'
 import { TopBar } from './classroom/TopBar'
@@ -80,11 +80,11 @@ function App() {
 		<TldrawUiToastsProvider>
 			<ClassroomProvider app={app}>
 				<div className="cr-app">
-					{app ? (
-						<TopBar onEditKey={() => setKeyDialogOpen(true)} onOpenStudy={() => setTab('study')} />
-					) : (
-						<header className="cr-topbar" aria-hidden="true" />
-					)}
+					<ErrorBoundary fallback={() => <header className="cr-topbar" />}>
+						<WhenClassroomReady fallback={<header className="cr-topbar" aria-hidden="true" />}>
+							<TopBar onEditKey={() => setKeyDialogOpen(true)} onOpenStudy={() => setTab('study')} />
+						</WhenClassroomReady>
+					</ErrorBoundary>
 					<div className="cr-body">
 						<main className="cr-canvas" aria-label="Whiteboard">
 							<Tldraw
@@ -100,7 +100,9 @@ function App() {
 						<ErrorBoundary fallback={ChatPanelFallback}>
 							{app ? (
 								<TldrawAgentAppContextProvider app={app}>
-									<ClassroomPanel tab={tab} onTabChange={setTab} />
+									<WhenClassroomReady fallback={<aside className="cr-panel" aria-busy="true" />}>
+										<ClassroomPanel tab={tab} onTabChange={setTab} />
+									</WhenClassroomReady>
 								</TldrawAgentAppContextProvider>
 							) : (
 								<aside className="cr-panel" aria-busy="true" />

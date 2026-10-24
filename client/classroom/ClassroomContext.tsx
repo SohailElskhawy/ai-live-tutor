@@ -1,14 +1,9 @@
-import { createContext, ReactNode, useContext, useEffect, useMemo } from 'react'
+import { ReactNode, useContext, useEffect, useMemo } from 'react'
 import { TldrawAgentApp } from '../agent/TldrawAgentApp'
 import { BoardBridge, installStudentShapeGuard } from '../tutor/boardBridge'
 import { LiveTutor } from '../voice/LiveTutor'
 
-export interface Classroom {
-	board: BoardBridge
-	tutor: LiveTutor
-}
-
-const ClassroomContext = createContext<Classroom | null>(null)
+import { Classroom, ClassroomContext } from './classroomContext'
 
 /**
  * Provides the voice tutor and whiteboard bridge once the agent app exists.
@@ -37,4 +32,9 @@ export function useClassroom(): Classroom {
 
 export function useClassroomReady(): boolean {
 	return useContext(ClassroomContext) !== null
+}
+
+/** Render children only once the classroom exists, instead of crashing. */
+export function WhenClassroomReady({ children, fallback = null }: { children: ReactNode; fallback?: ReactNode }) {
+	return <>{useClassroomReady() ? children : fallback}</>
 }
