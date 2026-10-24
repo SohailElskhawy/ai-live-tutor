@@ -8,7 +8,7 @@ import {
 	Type,
 } from '@google/genai'
 import { atom } from 'tldraw'
-import { LiveTokenResponse } from '../../shared/live'
+import { LIVE_API_VERSION, LiveTokenResponse } from '../../shared/live'
 import { $studyContext, getStudyExcerpt } from '../study/studyStore'
 import { BoardBridge, BoardTask } from '../tutor/boardBridge'
 import { getKeyHeaders } from '../tutor/keyStore'
@@ -131,8 +131,18 @@ export class LiveTutor {
 			}
 			const { token, model } = (await res.json()) as LiveTokenResponse
 
-			const ai = new GoogleGenAI({ apiKey: token })
-			this.session = await ai.live.connect({
+			const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: LIVE_API_VERSION } })
+			// connect() waits for Gemini's setupComplete. If setup is rejected the socket
+			// just closes, so race it against the close/error callbacks and a timeout.
+			let rejectSetup: (reason: Error) => void = () => {}
+			const setupFailed = new Promise<never>((_, reject) => {
+				rejectSetup = reject
+			})
+			const timeout = setTimeout(
+				() => rejectSetup(new Error('Gemini Live did not respond. Check your connection and try again.')),
+				20_000
+			)
+			const connecting = ai.live.connect({
 				model,
 				config: {
 					responseModalities: [Modality.AUDIO],
@@ -144,13 +154,28 @@ export class LiveTutor {
 				},
 				callbacks: {
 					onmessage: (message) => this.handleMessage(message),
-					onerror: (e) => this.fail(e.message || 'The voice connection failed.'),
+					onerror: (e) => {
+						const message = e.message || 'The voice connection failed.'
+						rejectSetup(new Error(message))
+						this.fail(message)
+					},
 					onclose: (e) => {
 						if (this.closedByUser) return
-						this.fail(e.reason ? `Voice session ended: ${e.reason}` : 'Voice session ended.')
+						const message = e.reason ? `Voice session ended: ${e.reason}` : 'Voice session ended.'
+						rejectSetup(new Error(message))
+						this.fail(message)
 					},
 				},
 			})
+			try {
+				this.session = await Promise.race([connecting, setupFailed])
+			} finally {
+				clearTimeout(timeout)
+			}
+			if (this.closedByUser) {
+				this.session.close()
+				return
+			}
 
 			this.mic = new MicCapture(
 				(data) => this.session?.sendRealtimeInput({ audio: { data, mimeType: 'audio/pcm;rate=16000' } }),

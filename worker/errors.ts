@@ -5,12 +5,24 @@
  * so we never serialize the error object itself.
  */
 export function toPublicError(e: unknown): { status: number; message: string } {
+	const wrapped = e as { lastError?: unknown } | null
+	if (wrapped?.lastError) return toPublicError(wrapped.lastError)
 	const err = e as { status?: number; statusCode?: number; message?: string } | null
 	const status = err?.status ?? err?.statusCode ?? 500
 	const raw = extractGoogleMessage(err?.message ?? '')
 
 	if (/api key not valid|API_KEY_INVALID|permission denied|unauthenticated/i.test(raw)) {
 		return { status: 401, message: "That Gemini API key isn't valid. Check it and enter it again." }
+	}
+	if (status === 402 || /prepayment|credits are depleted|billing/i.test(raw)) {
+		return {
+			status: 402,
+			message:
+				'Your Gemini project is out of prepaid credits. Add credits in Google AI Studio, or use a key from a project on the free tier.',
+		}
+	}
+	if (status === 503 || /high demand|overloaded/i.test(raw)) {
+		return { status: 503, message: 'Gemini is overloaded right now. Wait a few seconds and try again.' }
 	}
 	if (status === 429 || /quota|rate limit|resource.?exhausted/i.test(raw)) {
 		return {

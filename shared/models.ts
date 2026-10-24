@@ -93,6 +93,43 @@ export const AGENT_MODEL_DEFINITIONS = {
 		thinkingLevel: 'low',
 	},
 
+	// Fallbacks used when the preferred Gemini model is overloaded (see worker/models.ts)
+	'gemini-3.6-flash': {
+		name: 'gemini-3.6-flash',
+		id: 'gemini-3.6-flash',
+		provider: 'google',
+		supportsPrefill: false,
+		supportsTemperature: false,
+		thinkingLevel: 'low',
+	},
+
+	'gemini-3.5-flash': {
+		name: 'gemini-3.5-flash',
+		id: 'gemini-3.5-flash',
+		provider: 'google',
+		supportsPrefill: false,
+		supportsTemperature: false,
+		thinkingLevel: 'low',
+	},
+
+	'gemini-3.5-flash-lite': {
+		name: 'gemini-3.5-flash-lite',
+		id: 'gemini-3.5-flash-lite',
+		provider: 'google',
+		supportsPrefill: false,
+		supportsTemperature: false,
+		thinkingLevel: 'low',
+	},
+
+	'gemini-3.1-flash-lite': {
+		name: 'gemini-3.1-flash-lite',
+		id: 'gemini-3.1-flash-lite',
+		provider: 'google',
+		supportsPrefill: false,
+		supportsTemperature: false,
+		thinkingLevel: 'low',
+	},
+
 	// OpenAI models
 	'gpt-5.6-sol': {
 		name: 'gpt-5.6-sol',

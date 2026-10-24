@@ -20,6 +20,7 @@ import { Environment } from '../environment'
 import { buildMessages } from '../prompt/buildMessages'
 import { buildSystemPrompt } from '../prompt/buildSystemPrompt'
 import { getModelName } from '../prompt/getModelName'
+import { getTextModelChain, isModelFallbackError } from '../models'
 import { closeAndParseJson } from './closeAndParseJson'
 
 export class AgentService {
@@ -47,21 +48,39 @@ export class AgentService {
 	}
 
 	async *stream(prompt: AgentPrompt, apiKey?: string | null): AsyncGenerator<Streaming<AgentAction>> {
-		try {
-			for await (const event of this.streamActions(prompt, apiKey)) {
-				yield event
+		const modelName = getModelName(prompt)
+		const definition = getAgentModelDefinition(modelName)
+
+		// With a student key, fall back through other Gemini models when one is overloaded
+		const chain =
+			definition.provider === 'google' && apiKey
+				? (await getTextModelChain(apiKey, modelName)).filter(isValidModelName)
+				: [modelName]
+
+		for (let i = 0; i < chain.length; i++) {
+			let yielded = false
+			try {
+				for await (const event of this.streamActions(prompt, apiKey, chain[i])) {
+					yielded = true
+					yield event
+				}
+				return
+			} catch (error: any) {
+				const canFallBack = !yielded && i < chain.length - 1 && isModelFallbackError(error)
+				if (!canFallBack) {
+					console.error('Stream error:', error?.message ?? error)
+					throw error
+				}
+				console.warn(`${chain[i]} unavailable (${error?.message ?? error}); trying ${chain[i + 1]}`)
 			}
-		} catch (error: any) {
-			console.error('Stream error:', error)
-			throw error
 		}
 	}
 
 	private async *streamActions(
 		prompt: AgentPrompt,
-		apiKey?: string | null
+		apiKey: string | null | undefined,
+		modelName: AgentModelName
 	): AsyncGenerator<Streaming<AgentAction>> {
-		const modelName = getModelName(prompt)
 		const model = this.getModel(modelName, apiKey)
 
 		if (typeof model === 'string') {
@@ -130,6 +149,8 @@ export class AgentService {
 				model,
 				messages,
 				maxOutputTokens: 8192,
+				// Fail fast on overload so we can fall back to another model
+				maxRetries: 1,
 				// Opus 4.7+ removed `temperature` (and top_p/top_k); sending it returns a 400.
 				...(modelDefinition.supportsTemperature ? { temperature: 0 } : {}),
 				providerOptions: getProviderOptions(modelDefinition),
@@ -205,7 +226,6 @@ export class AgentService {
 				}
 			}
 		} catch (error: any) {
-			console.error('streamActions error:', error)
 			throw error
 		}
 	}

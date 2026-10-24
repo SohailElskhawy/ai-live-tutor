@@ -1,8 +1,9 @@
 import { GoogleGenAI } from '@google/genai'
 import { IRequest } from 'itty-router'
-import { LIVE_MODEL, LiveTokenResponse } from '../../shared/live'
+import { LIVE_API_VERSION, LiveTokenResponse } from '../../shared/live'
 import { requireGeminiKey } from '../byok'
 import { Environment } from '../environment'
+import { pickLiveModel } from '../models'
 
 /**
  * Exchange the student's Gemini key for a short-lived, single-use Live API token.
@@ -12,7 +13,8 @@ import { Environment } from '../environment'
  */
 export async function liveToken(request: IRequest, env: Environment): Promise<LiveTokenResponse> {
 	const apiKey = requireGeminiKey(request, env)
-	const ai = new GoogleGenAI({ apiKey })
+	const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: LIVE_API_VERSION } })
+	const model = await pickLiveModel(apiKey)
 
 	const now = Date.now()
 	const expiresAt = new Date(now + 30 * 60_000).toISOString()
@@ -25,5 +27,5 @@ export async function liveToken(request: IRequest, env: Environment): Promise<Li
 	})
 
 	if (!token.name) throw new Error('Gemini did not return a session token.')
-	return { token: token.name, model: LIVE_MODEL, expiresAt }
+	return { token: token.name, model, expiresAt }
 }
