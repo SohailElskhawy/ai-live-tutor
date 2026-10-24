@@ -13,7 +13,7 @@ export default defineConfig({
 		permissions: ['microphone'],
 		launchOptions: {
 			executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || '/usr/bin/chromium',
-			args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'],
+			args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
 		},
 		screenshot: 'only-on-failure',
 		trace: 'retain-on-failure',

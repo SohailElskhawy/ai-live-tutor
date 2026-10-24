@@ -14,6 +14,11 @@ import { BoardBridge, BoardTask } from '../tutor/boardBridge'
 import { getKeyHeaders } from '../tutor/keyStore'
 import { MicCapture, PcmPlayer } from './audio'
 
+/** Voice lifecycle logs. Shown in development so connection problems are easy to trace. */
+function voiceLog(...args: unknown[]) {
+	if (import.meta.env.DEV) console.warn('[voice]', ...args)
+}
+
 export type LiveStatus = 'idle' | 'connecting' | 'listening' | 'speaking' | 'error'
 
 export interface TranscriptEntry {
@@ -117,12 +122,21 @@ export class LiveTutor {
 	async start() {
 		if (this.isActive()) return
 		this.closedByUser = false
+		this.loggedFirstAudio = false
 		this.$error.set(null)
 		this.$status.set('connecting')
 
+		// Create both audio contexts now, while we're still inside the click.
+		// Contexts created after the awaits below would start suspended.
+		const playerReady = this.player.resume()
+		this.mic = new MicCapture(
+			(data) => this.session?.sendRealtimeInput({ audio: { data, mimeType: 'audio/pcm;rate=16000' } }),
+			(level) => this.$micLevel.set(level)
+		)
+		this.mic.prepare()
+
 		try {
-			// Unlock audio output inside the click handler that called start()
-			await this.player.resume()
+			await playerReady
 
 			const res = await fetch('/live/token', { method: 'POST', headers: getKeyHeaders() })
 			if (!res.ok) {
@@ -130,6 +144,7 @@ export class LiveTutor {
 				throw new Error(body?.error ?? `Couldn't start a voice session (${res.status}).`)
 			}
 			const { token, model } = (await res.json()) as LiveTokenResponse
+			voiceLog('token ok, connecting to', model)
 
 			const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: LIVE_API_VERSION } })
 			// connect() waits for Gemini's setupComplete. If setup is rejected the socket
@@ -160,6 +175,7 @@ export class LiveTutor {
 						this.fail(message)
 					},
 					onclose: (e) => {
+						voiceLog('socket closed', e.code, e.reason)
 						if (this.closedByUser) return
 						const message = e.reason ? `Voice session ended: ${e.reason}` : 'Voice session ended.'
 						rejectSetup(new Error(message))
@@ -177,12 +193,16 @@ export class LiveTutor {
 				return
 			}
 
-			this.mic = new MicCapture(
-				(data) => this.session?.sendRealtimeInput({ audio: { data, mimeType: 'audio/pcm;rate=16000' } }),
-				(level) => this.$micLevel.set(level)
-			)
+			if (!this.mic) return
 			this.mic.muted = this.$muted.get()
+			voiceLog('connected; starting microphone')
 			await this.mic.start()
+			voiceLog('microphone streaming')
+
+			// Have the tutor speak first, so the student hears right away that voice works
+			this.session.sendRealtimeInput({
+				text: 'The student just joined. Greet them warmly in one short sentence and ask what they want to learn today.',
+			})
 
 			this.$status.set('listening')
 			this.statusTimer = setInterval(() => {
@@ -224,6 +244,7 @@ export class LiveTutor {
 	}
 
 	private fail(message: string) {
+		voiceLog('failed:', message)
 		this.teardown()
 		this.$error.set(message)
 		this.$status.set('error')
@@ -246,8 +267,15 @@ export class LiveTutor {
 		this.finalizeEntries()
 	}
 
+	private loggedFirstAudio = false
+
 	private handleMessage(message: LiveServerMessage) {
 		const content = message.serverContent
+		if (!this.loggedFirstAudio && content?.modelTurn?.parts?.some((p) => p.inlineData?.data)) {
+			this.loggedFirstAudio = true
+			voiceLog('receiving tutor audio')
+		}
+		if (message.toolCall) voiceLog('tool call', message.toolCall.functionCalls?.map((c) => c.name))
 		if (content) {
 			// The student started talking over the tutor: drop queued audio immediately
 			if (content.interrupted) {

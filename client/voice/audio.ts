@@ -78,18 +78,31 @@ export class MicCapture {
 		private onLevel: (level: number) => void = () => {}
 	) {}
 
+	/**
+	 * Create the audio context. Call this synchronously inside the click handler:
+	 * browsers keep contexts created later (after awaits) suspended, which silently
+	 * stops the microphone from sending audio.
+	 */
+	prepare() {
+		// Use the device's native rate; the worklet downsamples to 16 kHz
+		this.context ??= new AudioContext()
+		void this.context.resume()
+	}
+
 	async start() {
+		this.prepare()
 		this.stream = await navigator.mediaDevices.getUserMedia({
 			audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 		})
-		// Use the device's native rate; the worklet downsamples to 16 kHz
-		this.context = new AudioContext()
+		if (!this.context) throw new Error('Microphone was stopped.')
+		await this.context.resume()
 		const url = URL.createObjectURL(new Blob([CAPTURE_WORKLET], { type: 'application/javascript' }))
 		try {
 			await this.context.audioWorklet.addModule(url)
 		} finally {
 			URL.revokeObjectURL(url)
 		}
+		if (!this.context) throw new Error('Microphone was stopped.')
 		const source = this.context.createMediaStreamSource(this.stream)
 		this.node = new AudioWorkletNode(this.context, 'pcm-capture')
 		this.node.port.onmessage = (e: MessageEvent<{ pcm: ArrayBuffer; level: number }>) => {
@@ -132,8 +145,8 @@ export class PcmPlayer {
 	}
 
 	/** Must be called from a user gesture so the browser allows playback. */
-	async resume() {
-		await this.ensureContext().resume()
+	resume() {
+		return this.ensureContext().resume()
 	}
 
 	enqueue(base64Pcm: string) {

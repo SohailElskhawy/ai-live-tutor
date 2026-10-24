@@ -15,6 +15,7 @@ export async function liveToken(request: IRequest, env: Environment): Promise<Li
 	const apiKey = requireGeminiKey(request, env)
 	const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: LIVE_API_VERSION } })
 	const model = await pickLiveModel(apiKey)
+	console.log(`Live token for model ${model}`)
 
 	const now = Date.now()
 	const expiresAt = new Date(now + 30 * 60_000).toISOString()
