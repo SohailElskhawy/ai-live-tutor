@@ -1,0 +1,10 @@
+# Copy to .dev.vars (git-ignored) for local Worker secrets. Optional:
+# students normally bring their own Gemini key in the app.
+# In production, set these with `npx wrangler secret put <NAME>` instead.
+
+# Server-side Gemini key, used only when ALLOW_SERVER_KEY is "true".
+GOOGLE_API_KEY=
+
+# Set to "true" to let requests without a student key use GOOGLE_API_KEY.
+# Leave unset in production unless you intend to pay for every visitor's usage.
+ALLOW_SERVER_KEY=

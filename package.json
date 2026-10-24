@@ -1,13 +1,11 @@
 {
 	"name": "ai-live-tutor",
 	"version": "0.0.0",
+	"description": "Talk to an AI tutor that explains out loud and draws on a shared tldraw whiteboard. Gemini Live, BYOK, PDF quizzes and flashcards.",
 	"private": true,
-	"homepage": "https://tldraw.dev",
+	"homepage": "https://github.com/SohailElskhawy/ai-live-tutor#readme",
 	"license": "MIT",
-	"author": {
-		"name": "tldraw GB Ltd.",
-		"email": "hello@tldraw.com"
-	},
+	"author": "AI Live Tutor contributors",
 	"type": "module",
 	"scripts": {
 		"build": "vite build",
@@ -49,5 +47,15 @@
 	"allowScripts": {
 		"workerd@1.20261019.1": true,
 		"esbuild@0.28.2": true
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/SohailElskhawy/ai-live-tutor.git"
+	},
+	"bugs": {
+		"url": "https://github.com/SohailElskhawy/ai-live-tutor/issues"
+	},
+	"engines": {
+		"node": "^20.19.0 || >=22.12.0"
 	}
 }

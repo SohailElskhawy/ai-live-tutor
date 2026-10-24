@@ -89,6 +89,7 @@ function App() {
 						<main className="cr-canvas" aria-label="Whiteboard">
 							<Tldraw
 								persistenceKey="ai-live-tutor-board"
+								licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
 								tools={tools}
 								overlayUtils={overlayUtils}
 								overrides={overrides}

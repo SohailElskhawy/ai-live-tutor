@@ -1,13 +1,29 @@
-/*/node_modules
+# Dependencies
 node_modules
 .yarn/
+
+# Secrets and local config (never commit real keys)
+.env
+.env.*
+!.env.example
 .dev.vars
 *.dev.vars
-# Playwright
-test-results/
-playwright-report/
+!.dev.vars.example
+.npmrc
 
-# Build and local runtime state
+# Build output and local runtime state
 dist/
 .wrangler/
 .tsbuild/
+*.tsbuildinfo
+
+# Test output
+test-results/
+playwright-report/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

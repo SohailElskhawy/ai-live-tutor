@@ -1,0 +1,50 @@
+name: Bug report
+description: Something isn't working as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please **don't paste API keys** anywhere in this form.
+        Security issues go through [private reporting](../security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Tutor tab
+        2. Click Start talking
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Voice tutor
+        - Whiteboard / drawing agent
+        - PDF, quiz or flashcards
+        - API key / setup
+        - UI / layout
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Chrome 154 on Ubuntu 24.04
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages or logs
+      description: Text shown in the app, browser console output, or `npm run dev` output. Remove any keys first.
+      render: text
