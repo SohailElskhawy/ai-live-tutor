@@ -120,23 +120,31 @@ export class LiveTutor {
 	}
 
 	async start() {
-		if (this.isActive()) return
+		voiceLog('start clicked, status =', this.$status.get())
+		// A start that's stuck connecting can be retried; an active session can't be doubled
+		if (this.$status.get() === 'listening' || this.$status.get() === 'speaking') return
+		if (this.$status.get() === 'connecting') this.teardown()
 		this.closedByUser = false
 		this.loggedFirstAudio = false
 		this.$error.set(null)
 		this.$status.set('connecting')
 
-		// Create both audio contexts now, while we're still inside the click.
-		// Contexts created after the awaits below would start suspended.
-		const playerReady = this.player.resume()
-		this.mic = new MicCapture(
-			(data) => this.session?.sendRealtimeInput({ audio: { data, mimeType: 'audio/pcm;rate=16000' } }),
-			(level) => this.$micLevel.set(level)
-		)
-		this.mic.prepare()
-
 		try {
-			await playerReady
+			// Create both audio contexts now, while we're still inside the click.
+			// Contexts created after the awaits below would start suspended.
+			const playerReady = this.player.resume()
+			this.mic = new MicCapture(
+				(data) => this.session?.sendRealtimeInput({ audio: { data, mimeType: 'audio/pcm;rate=16000' } }),
+				(level) => this.$micLevel.set(level)
+			)
+			this.mic.prepare()
+
+			// Don't let a slow or missing audio device block the session from starting
+			const audioState = await Promise.race([
+				playerReady.then(() => 'running'),
+				new Promise<string>((resolve) => setTimeout(() => resolve('still waiting'), 1500)),
+			]).catch((e) => `error: ${e instanceof Error ? e.message : e}`)
+			voiceLog('speaker audio', audioState, '; requesting session token')
 
 			const res = await fetch('/live/token', { method: 'POST', headers: getKeyHeaders() })
 			if (!res.ok) {

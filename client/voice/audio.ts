@@ -91,6 +91,9 @@ export class MicCapture {
 
 	async start() {
 		this.prepare()
+		if (!navigator.mediaDevices?.getUserMedia) {
+			throw new Error('This browser can’t use the microphone here. Open the app at http://localhost:5173 in Chrome or Edge.')
+		}
 		this.stream = await navigator.mediaDevices.getUserMedia({
 			audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 		})
