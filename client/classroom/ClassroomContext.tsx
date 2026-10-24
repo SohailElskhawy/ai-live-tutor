@@ -1,6 +1,7 @@
 import { ReactNode, useContext, useEffect, useMemo } from 'react'
 import { TldrawAgentApp } from '../agent/TldrawAgentApp'
-import { BoardBridge, installStudentShapeGuard } from '../tutor/boardBridge'
+import { BoardBridge } from '../tutor/boardBridge'
+import { installStudentShapeGuard } from '../tutor/studentShapes'
 import { LiveTutor } from '../voice/LiveTutor'
 
 import { Classroom, ClassroomContext } from './classroomContext'

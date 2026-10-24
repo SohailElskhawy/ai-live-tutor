@@ -47,14 +47,15 @@ export function registerActionUtil<T extends AgentActionUtilConstructor<BaseAgen
 		}
 		const modeMap = modeRegistry.get(util.type)!
 		for (const mode of forModes) {
-			if (modeMap.has(mode)) {
+			// Hot reloads re-run util modules in development; replace instead of throwing
+			if (modeMap.has(mode) && !import.meta.hot) {
 				throw new Error(`Action util for ${util.type} already registered for mode ${mode}`)
 			}
 			modeMap.set(mode, util)
 		}
 	} else {
 		// Default registration (existing behavior)
-		if (defaultRegistry.has(util.type)) {
+		if (defaultRegistry.has(util.type) && !import.meta.hot) {
 			throw new Error(`Agent action util already registered: ${util.type}`)
 		}
 		defaultRegistry.set(util.type, util)

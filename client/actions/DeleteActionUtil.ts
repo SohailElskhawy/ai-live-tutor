@@ -3,7 +3,7 @@ import { DeleteAction } from '../../shared/schema/AgentActionSchemas'
 import { BaseAgentAction } from '../../shared/types/BaseAgentAction'
 import { Streaming } from '../../shared/types/Streaming'
 import { AgentHelpers } from '../AgentHelpers'
-import { isStudentShape } from '../tutor/boardBridge'
+import { isStudentShape } from '../tutor/studentShapes'
 import { AgentActionUtil, registerActionUtil } from './AgentActionUtil'
 
 export const DeleteActionUtil = registerActionUtil(

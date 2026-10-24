@@ -17,7 +17,8 @@ const registry = new Map<string, PromptPartUtilConstructor<BasePromptPart>>()
 export function registerPromptPartUtil<T extends PromptPartUtilConstructor<BasePromptPart>>(
 	util: T
 ): T {
-	if (registry.has(util.type)) {
+	// Hot reloads re-run util modules in development; replace instead of throwing
+	if (registry.has(util.type) && !import.meta.hot) {
 		throw new Error(`Prompt part util already registered: ${util.type}`)
 	}
 	registry.set(util.type, util)

@@ -74,13 +74,28 @@ export function closeAndParseJson(string: string) {
 
 /**
  * Models sometimes wrap their JSON in a markdown fence or add a sentence before it,
- * even when told not to. Keep only the JSON object so it can still be parsed.
+ * even when told not to. Keep only the JSON so it can still be parsed.
+ *
+ * Gemini also sometimes copies the chat history's `[ACTION]: {...}` notation instead of
+ * returning `{"actions": [...]}`. Convert that into the expected shape.
  */
 function stripNonJsonWrapper(string: string) {
 	const start = string.indexOf('{')
 	if (start === -1) return string
-	let json = string.slice(start)
+
+	if (string.slice(0, start).includes('[ACTION]')) {
+		const actions = string
+			.split(/\[ACTION\]:?/)
+			.map((piece) => stripFence(piece.trim()))
+			.filter((piece) => piece.startsWith('{'))
+		// Left unclosed on purpose: the caller closes any open brackets
+		return `{"actions":[${actions.join(',')}`
+	}
+
+	return stripFence(string.slice(start))
+}
+
+function stripFence(json: string) {
 	const fence = json.indexOf('```')
-	if (fence !== -1) json = json.slice(0, fence)
-	return json.trimEnd()
+	return (fence === -1 ? json : json.slice(0, fence)).trimEnd()
 }
