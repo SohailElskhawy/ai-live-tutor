@@ -217,6 +217,16 @@ export class AgentService {
 
 			if (streamError) throw streamError
 
+			// One-line summary per request, so "nothing was drawn" is easy to diagnose
+			const parsed = closeAndParseJson(buffer)
+			const types = Array.isArray(parsed?.actions)
+				? parsed.actions.map((a: { _type?: string }) => a?._type)
+				: []
+			console.log(`[agent] ${modelName}: ${types.length} actions [${types.join(', ')}]`)
+			if (types.length === 0) {
+				console.warn(`[agent] unparsed reply (${buffer.length} chars): ${buffer.slice(0, 400)}`)
+			}
+
 			// If we've finished receiving events, but there's still an incomplete event, we need to complete it
 			if (maybeIncompleteAction) {
 				yield {

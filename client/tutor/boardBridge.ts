@@ -49,10 +49,14 @@ export class BoardBridge {
 			},
 		})
 
-		return this.waitUntilIdle(runId).then((status) => ({
-			status,
-			summary: this.getAgentMessagesSince(historyStart) || 'Updated the whiteboard.',
-		}))
+		return this.waitUntilIdle(runId).then((status) => {
+			if (status === 'error') return { status, summary: 'Drawing timed out.' }
+			if (status === 'done' && this.countBoardActionsSince(historyStart) === 0) {
+				const said = this.getAgentMessagesSince(historyStart)
+				return { status: 'error' as const, summary: said || 'Nothing was drawn. Try asking again.' }
+			}
+			return { status, summary: this.getAgentMessagesSince(historyStart) || 'Updated the whiteboard.' }
+		})
 	}
 
 	cancel() {
@@ -86,6 +90,16 @@ export class BoardBridge {
 			}
 			check()
 		})
+	}
+
+	/** Actions that changed the canvas (anything other than talking or planning). */
+	private countBoardActionsSince(index: number): number {
+		const nonDrawing = new Set(['message', 'think', 'review', 'add-detail', 'update-todo-list', 'unknown', 'count', 'setMyView'])
+		return this.agent.chat
+			.getHistory()
+			.slice(index)
+			.filter((item) => item.type === 'action' && item.action.complete && !nonDrawing.has(item.action._type))
+			.length
 	}
 
 	private getAgentMessagesSince(index: number): string {

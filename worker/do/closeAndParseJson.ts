@@ -5,6 +5,7 @@
  * @returns The parsed object.
  */
 export function closeAndParseJson(string: string) {
+	string = stripNonJsonWrapper(string)
 	const stackOfOpenings = []
 
 	// Track openings and closings
@@ -69,4 +70,17 @@ export function closeAndParseJson(string: string) {
 	} catch (_e) {
 		return null
 	}
+}
+
+/**
+ * Models sometimes wrap their JSON in a markdown fence or add a sentence before it,
+ * even when told not to. Keep only the JSON object so it can still be parsed.
+ */
+function stripNonJsonWrapper(string: string) {
+	const start = string.indexOf('{')
+	if (start === -1) return string
+	let json = string.slice(start)
+	const fence = json.indexOf('```')
+	if (fence !== -1) json = json.slice(0, fence)
+	return json.trimEnd()
 }

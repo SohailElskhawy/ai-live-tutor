@@ -316,7 +316,7 @@ export class LiveTutor {
 				? `Done — ${outcome.summary}`
 				: outcome.status === 'cancelled'
 					? `Stopped: ${instruction}`
-					: 'Drawing timed out.'
+					: outcome.summary
 		this.updateEntry(entryId, text)
 	}
 
